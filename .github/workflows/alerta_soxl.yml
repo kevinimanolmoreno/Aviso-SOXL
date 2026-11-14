@@ -1,0 +1,40 @@
+name: Alerta diaria SOXL
+
+on:
+  schedule:
+    - cron: "45 16 * * 1-5"
+      timezone: "America/New_York"
+  workflow_dispatch:
+    inputs:
+      enviar_telegram:
+        description: "Enviar a Telegram si la sesión de hoy ya cerró"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  alerta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: python -m pip install yfinance pandas numpy requests pandas-market-calendars
+
+      - name: Probar sin enviar
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.enviar_telegram }}
+        run: python alerta_soxl.py
+
+      - name: Generar reporte y enviar a Telegram
+        if: ${{ github.event_name == 'schedule' || inputs.enviar_telegram }}
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python alerta_soxl.py --enviar
